@@ -46,12 +46,10 @@ function dlxedd_update_cart($user_id, $new_cart) {
 
 
 function dlxedd_get_product($product_id) {
-    // global $wpdb;
     $product = get_post($product_id, ARRAY_A);
-    // $product = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}posts WHERE ID=%d", $product_id));
 
     if($product !== null) {
-        $product["edd_price"] = get_post_meta($product_id, "edd_price", true);
+        $product["edd_price"] = floatval(get_post_meta($product_id, "edd_price", true));
         $product["edd_download_files"] = get_post_meta($product_id, "edd_download_files", true);
 
         $product["_edd_bundled_products"] = get_post_meta($product_id, "_edd_bundled_products", true);
