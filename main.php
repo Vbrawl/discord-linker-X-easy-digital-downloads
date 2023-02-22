@@ -7,7 +7,7 @@
  * 
  * Description: This plugin extends "Discord Linker" and allows it to integrate with Easy Digital Downloads
  * 
- * Version: 0.1.0
+ * Version: 0.1.1
  * 
  * Author: Vbrawl
  */
@@ -222,6 +222,30 @@ function dlxedd_remove_from_cart($request) {
 }
 
 
+
+
+function dlxedd_clear_cart_contents($request) {
+    global $IMPERSONATED_WP_ID;
+    $discord_id = $request->get_param("discord_id");
+
+    $account_link = new dlAccountLink(null, $discord_id);
+    $error = $account_link->impersonate();
+    if(is_wp_error($error)) {
+        return $error;
+    }
+
+    dlxedd_update_cart($IMPERSONATED_WP_ID, array());
+
+    $account_link->reset_impersonation();
+    return array('code' => "SUCCESS");
+}
+
+
+
+
+
+
+
 function dlxedd_get_cart_contents($request) {
     global $IMPERSONATED_WP_ID;
     $discord_id = $request->get_param("discord_id");
@@ -327,6 +351,19 @@ function dlxedd_rest_api_init() {
             "discord_id" => array(
                 "validate_callback" => 'dl_is_discord_id'
             ),
+        )
+    ));
+
+
+
+
+    register_rest_route("dlxedd/v1/cart", "/clear/(?P<discord_id>.*)", array(
+        "methods" => "GET",
+        "callback" => "dlxedd_clear_cart_contents",
+        "args" => array(
+            "discord_id" => array(
+                "validate_callback" => 'dl_is_discord_id'
+            )
         )
     ));
 
