@@ -19,6 +19,7 @@ define("EASY_DIGITAL_DOWNLOADS", "easy-digital-downloads/easy-digital-downloads.
 
 require_once("helpers.php");
 require_once("shortcodes/initialize_shortcodes.php");
+require_once("errors.php");
 
 
 
@@ -104,6 +105,10 @@ function dlxedd_add_to_cart($request) {
         return $error;
     }
 
+    // Prepare quantity holders
+    $old_quantity = 0;
+    $new_quantity = 0;
+
 
     // Get or Generate cart
     $cart = dlxedd_get_cart($IMPERSONATED_WP_ID);
@@ -111,6 +116,7 @@ function dlxedd_add_to_cart($request) {
 
     $product_in_cart = dlxedd_product_in_cart($cart, $product_id);
     if($product_in_cart === false) { // NOT FOUND
+        $old_quantity = 0;
         // Create Product
         $new_product = array(
             "id" => intval($product_id),
@@ -120,10 +126,13 @@ function dlxedd_add_to_cart($request) {
 
         // Add created product to cart
         array_push($cart, $new_product);
+        $new_quantity = 1;
     }
     else { // FOUND
+        $old_quantity = $cart[$product_in_cart]["quantity"];
         // Add 1 to the cart's product quantity
         $cart[$product_in_cart]["quantity"] += 1;
+        $new_quantity = $cart[$product_in_cart]["quantity"];
     }
 
 
@@ -131,9 +140,20 @@ function dlxedd_add_to_cart($request) {
     update_user_meta($IMPERSONATED_WP_ID, "dl_x_edd_saved_cart", $cart, false);
 
 
+    // Get product details
+    $product = dlxedd_get_product($product_id);
+
+
     // Reset everything and go back
     $account_link->reset_impersonation();
-    return array('code' => "SUCCESS");
+    return array('code' => "SUCCESS", "data" => array(
+        "id" => $product_id,
+        "old_quantity" => $old_quantity,
+        "quantity" => $new_quantity,
+        "title" => $product["post_title"],
+        "price" => $product["edd_price"],
+        "thumbnail" => dlxedd_get_thumbnail_link($product["_thumbnail_id"])
+    ));
 }
 
 
@@ -150,6 +170,11 @@ function dlxedd_remove_from_cart($request) {
     }
 
 
+    // Prepare quantity holders
+    $old_quantity = 0;
+    $new_quantity = 0;
+
+
     // Get cart
     $cart = dlxedd_get_cart($IMPERSONATED_WP_ID);
 
@@ -157,19 +182,22 @@ function dlxedd_remove_from_cart($request) {
     // Find item
     $product_in_cart = dlxedd_product_in_cart($cart, $product_id);
     if($product_in_cart !== false) {
+        $old_quantity = $cart[$product_in_cart]["quantity"];
 
         if($cart[$product_in_cart]["quantity"] > 1) {
             // Remove 1 from the quantity
             $cart[$product_in_cart]["quantity"] -= 1;
+            $new_quantity = $cart[$product_in_cart]["quantity"];
         }
         else {
             // Remove the item entirely
             unset($cart[$product_in_cart]);
+            $new_quantity = 0;
         }
     }
     else {
         $account_link->reset_impersonation();
-        return new WP_Error("PRODUCT_NOT_IN_CART", "Your cart doesn't contain a product with this ProductID", array("id" => $product_id));
+        return dlxedd_error_PRODUCT_NOT_IN_CART($product_id);
     }
 
 
@@ -177,10 +205,20 @@ function dlxedd_remove_from_cart($request) {
     dlxedd_update_cart($IMPERSONATED_WP_ID, $cart);
 
 
+    // Get product details
+    $product = dlxedd_get_product($product_id);
+
+
     // Reset everything and go back
     $account_link->reset_impersonation();
-    return array('code' => "SUCCESS");
-
+    return array('code' => "SUCCESS", 'data' => array(
+        "id" => $product_id,
+        "old_quantity" => $old_quantity,
+        "quantity" => $new_quantity,
+        "title" => $product["post_title"],
+        "price" => $product["edd_price"],
+        "thumbnail" => dlxedd_get_thumbnail_link($product["_thumbnail_id"])
+    ));
 }
 
 
@@ -210,7 +248,7 @@ function dlxedd_get_cart_contents($request) {
             "title" => $product_data["post_title"],
             "price" => $product_data["edd_price"],
             "product_link" => $product_data["guid"],
-            "thumbnail_link" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
+            "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
             "upload_date_gmt" => $product_data["post_date_gmt"],
             "quantity" => $product_cart["quantity"]
         ));
@@ -231,17 +269,15 @@ function dlxedd_get_cart_contents($request) {
 
 function is_product_id($value) {
     $dot_position = strpos($value, '.');
-    if(is_numeric($value) === false) {
-        $id_type = $dot_position !== false ? "float" : "string";
-
-        return new WP_Error("INCORRECT_PRODUCT_ID_TYPE", "Product ID must be integer", array("Type" => $id_type, "given id" => $value));
+    if(is_numeric($value) === false || $dot_position !== false) {
+        return dlxedd_error_INCORRECT_PRODUCT_ID_TYPE();
     }
 
     // check database
     global $wpdb;
 
     if(!dlxedd_product_exists($value)) {
-        return new WP_Error("PRODUCT_NOT_FOUND", "Product ID Must Exist!");
+        return dlxedd_error_PRODUCT_NOT_FOUND();
     }
 
     return true;
