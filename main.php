@@ -7,7 +7,7 @@
  * 
  * Description: This plugin extends "Discord Linker" and allows it to integrate with Easy Digital Downloads
  * 
- * Version: 0.1.1
+ * Version: 0.1.2
  * 
  * Author: Vbrawl
  */
@@ -286,12 +286,64 @@ function dlxedd_get_cart_contents($request) {
 
 
 
+function dlxedd_get_products($request) {
+    global $wpdb;
+
+    $epoch = $request->get_param("epoch");
+
+
+
+    if($epoch !== 0) {
+        $products = $wpdb->get_results(
+            $wpdb->prepare("SELECT id FROM {$wpdb->prefix}posts WHERE post_type = 'download' AND post_date_gmt > FROM_UNIXTIME(%d) ORDER BY post_date_gmt;", $epoch),
+            ARRAY_A
+        );
+    }
+    else {
+        $products = $wpdb->get_results(
+            $wpdb->prepare("SELECT id FROM {$wpdb->prefix}posts WHERE post_type = 'download';"),
+            ARRAY_A
+        );
+    }
+
+    $product_details = array();
+
+    foreach($products as $prod) {
+        // Get product details
+        $product_data = dlxedd_get_product($prod["id"]);
+
+
+        // Store the data to the list
+        array_push($product_details, array(
+            "id" => $product_data["ID"],
+            "title" => $product_data["post_title"],
+            "price" => $product_data["edd_price"],
+            "product_link" => $product_data["guid"],
+            "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
+            "upload_date_gmt" => $product_data["post_date_gmt"]
+        ));
+    }
+
+    return array("code" => "SUCCESS", "data" => $product_details);
+}
 
 
 
 
 
-function is_product_id($value) {
+function dlxedd_is_epoch($value) {
+    $dot_position = strpos($value, '.');
+    if(is_numeric($value) === false || $dot_position !== false) {
+        return dlxedd_error_INCORRECT_DATE_TYPE();
+    }
+
+    return true;
+}
+
+
+
+
+function dlxedd_is_product_id($value) {
     $dot_position = strpos($value, '.');
     if(is_numeric($value) === false || $dot_position !== false) {
         return dlxedd_error_INCORRECT_PRODUCT_ID_TYPE();
@@ -337,7 +389,7 @@ function dlxedd_rest_api_init() {
                 "validate_callback" => 'dl_is_discord_id'
             ),
             'product_id' => array(
-                "validate_callback" => 'is_product_id'
+                "validate_callback" => 'dlxedd_is_product_id'
             )
         )
     ));
@@ -363,6 +415,17 @@ function dlxedd_rest_api_init() {
         "args" => array(
             "discord_id" => array(
                 "validate_callback" => 'dl_is_discord_id'
+            )
+        )
+    ));
+
+
+    register_rest_route("dlxedd/v1/products", "/get_products/(?P<epoch>.*)", array(
+        "methods" => "GET",
+        "callback" => "dlxedd_get_products",
+        "args" => array(
+            "epoch" => array(
+                "validate_callback" => 'dlxedd_is_epoch'
             )
         )
     ));
