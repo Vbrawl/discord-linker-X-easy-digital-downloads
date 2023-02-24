@@ -6,8 +6,9 @@
 
 function dlxedd_product_in_cart($cart, $product_id) {
     $cart_length = count($cart);
-    for($i = 0; $i < $cart_length; $i++) {
-        if($cart[$i]["id"] == $product_id) {
+
+    foreach($cart as $i => $var) {
+        if($var["id"] == $product_id) {
             return $i;
         }
     }
