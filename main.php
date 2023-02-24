@@ -373,7 +373,7 @@ function dlxedd_rest_api_init() {
                 'validate_callback' => 'dl_is_discord_id'
             ),
             'product_id' => array(
-                'validate_callback' => 'is_product_id'
+                'validate_callback' => 'dlxedd_is_product_id'
             )
         )
     ));
