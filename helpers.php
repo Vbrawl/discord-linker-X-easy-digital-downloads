@@ -73,3 +73,39 @@ function dlxedd_get_thumbnail_link($thumbnail_id) {
         return $thumbnail["guid"];
     }
 }
+
+
+function dlxedd_get_product_categories($product_id) {
+    global $wpdb;
+
+    $product_categories = $wpdb->get_results(
+        $wpdb->prepare("SELECT {$wpdb->prefix}terms.name FROM {$wpdb->prefix}terms JOIN {$wpdb->prefix}term_relationships ON term_taxonomy_id = term_id WHERE object_id = %d;", $product_id),
+        ARRAY_A
+    );
+
+    $categories = array();
+    foreach($product_categories as $category) {
+        array_push($categories, $category["name"]);
+    }
+
+    return $categories;
+}
+
+
+
+
+function  dlxedd_get_filtered_product($product_id, $quantity = null, $old_quantity = null) {
+    $product_data = dlxedd_get_product($product_id);
+
+    return array(
+        "id" => $product_id,
+        "title" => $product_data["post_title"],
+        "categories" => dlxedd_get_product_categories($product_data["ID"]),
+        "price" => $product_data["edd_price"],
+        "product_link" => $product_data["guid"],
+        "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
+        "upload_date_gmt" => $product_data["post_date_gmt"],
+        "quantity" => $quantity,
+        "old_quantity" => $old_quantity
+    );
+}
