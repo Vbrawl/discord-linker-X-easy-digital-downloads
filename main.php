@@ -140,20 +140,9 @@ function dlxedd_add_to_cart($request) {
     update_user_meta($IMPERSONATED_WP_ID, "dl_x_edd_saved_cart", $cart, false);
 
 
-    // Get product details
-    $product = dlxedd_get_product($product_id);
-
-
     // Reset everything and go back
     $account_link->reset_impersonation();
-    return array('code' => "SUCCESS", "data" => array(
-        "id" => $product_id,
-        "old_quantity" => $old_quantity,
-        "quantity" => $new_quantity,
-        "title" => $product["post_title"],
-        "price" => $product["edd_price"],
-        "thumbnail" => dlxedd_get_thumbnail_link($product["_thumbnail_id"])
-    ));
+    return array('code' => "SUCCESS", "data" => dlxedd_get_filtered_product($product_id, $new_quantity, $old_quantity));
 }
 
 
@@ -205,20 +194,9 @@ function dlxedd_remove_from_cart($request) {
     dlxedd_update_cart($IMPERSONATED_WP_ID, $cart);
 
 
-    // Get product details
-    $product = dlxedd_get_product($product_id);
-
-
     // Reset everything and go back
     $account_link->reset_impersonation();
-    return array('code' => "SUCCESS", 'data' => array(
-        "id" => $product_id,
-        "old_quantity" => $old_quantity,
-        "quantity" => $new_quantity,
-        "title" => $product["post_title"],
-        "price" => $product["edd_price"],
-        "thumbnail" => dlxedd_get_thumbnail_link($product["_thumbnail_id"])
-    ));
+    return array('code' => "SUCCESS", 'data' => dlxedd_get_filtered_product($product_id, $new_quantity, $old_quantity));
 }
 
 
@@ -263,19 +241,8 @@ function dlxedd_get_cart_contents($request) {
 
     // for each product store the following: ID, Title, Price, LinkToPost, LinkToThumbnail, GMT Upload Time
     foreach($cart as $product_cart) {
-        // get product details
-        $product_data = dlxedd_get_product($product_cart["id"]);
-
         // store the data to the list
-        array_push($product_list, array(
-            "id" => $product_cart["id"],
-            "title" => $product_data["post_title"],
-            "price" => $product_data["edd_price"],
-            "product_link" => $product_data["guid"],
-            "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
-            "upload_date_gmt" => $product_data["post_date_gmt"],
-            "quantity" => $product_cart["quantity"]
-        ));
+        array_push($product_list, dlxedd_get_filtered_product($product_cart["id"], $product_cart["quantity"]));
     }
 
     // Reset everything and go back
@@ -309,19 +276,8 @@ function dlxedd_get_products($request) {
     $product_details = array();
 
     foreach($products as $prod) {
-        // Get product details
-        $product_data = dlxedd_get_product($prod["id"]);
-
-
         // Store the data to the list
-        array_push($product_details, array(
-            "id" => $product_data["ID"],
-            "title" => $product_data["post_title"],
-            "price" => $product_data["edd_price"],
-            "product_link" => $product_data["guid"],
-            "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
-            "upload_date_gmt" => $product_data["post_date_gmt"]
-        ));
+        array_push($product_details, dlxedd_get_filtered_product($prod["id"]));
     }
 
     return array("code" => "SUCCESS", "data" => $product_details);
