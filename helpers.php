@@ -19,7 +19,7 @@ function dlxedd_product_in_cart($cart, $product_id) {
 function dlxedd_product_exists($product_id) {
     global $wpdb;
 
-    $exists = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->prefix}posts WHERE post_type = 'download' AND ID = %d;", $product_id));
+    $exists = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->prefix}posts WHERE post_type = 'download' AND post_status = 'publish' AND ID = %d;", $product_id));
 
     return ($exists !== null);
 }
@@ -30,6 +30,9 @@ function dlxedd_get_cart($user_id) {
     $cart = get_user_meta($user_id, "dl_x_edd_saved_cart", true);
     if(! $cart) {
         $cart = array();
+    }
+    else {
+        $cart = dlxedd_fix_cart($user_id, $cart);
     }
 
     return $cart;
@@ -52,6 +55,7 @@ function dlxedd_get_product($product_id) {
     if($product !== null) {
         $product["edd_price"] = floatval(get_post_meta($product_id, "edd_price", true));
         $product["edd_download_files"] = get_post_meta($product_id, "edd_download_files", true);
+        $product["edd_product_notes"] = get_post_meta($product_id, "edd_product_notes", true);
 
         $product["_edd_bundled_products"] = get_post_meta($product_id, "_edd_bundled_products", true);
         $product["_edd_download_earnings"] = get_post_meta($product_id, "_edd_download_earnings", true);
@@ -96,16 +100,38 @@ function dlxedd_get_product_categories($product_id) {
 
 function  dlxedd_get_filtered_product($product_id, $quantity = null, $old_quantity = null) {
     $product_data = dlxedd_get_product($product_id);
+    $site_url = get_option("siteurl");
 
     return array(
         "id" => $product_id,
         "title" => $product_data["post_title"],
         "categories" => dlxedd_get_product_categories($product_data["ID"]),
         "price" => $product_data["edd_price"],
-        "product_link" => $product_data["guid"],
+        "product_link" => "{$site_url}?download={$product_data['post_name']}",
         "thumbnail" => dlxedd_get_thumbnail_link($product_data["_thumbnail_id"]),
+        "excerpt" => $product_data["post_excerpt"],
+        "notes" => $product_data["edd_product_notes"],
         "upload_date_gmt" => $product_data["post_date_gmt"],
         "quantity" => $quantity,
         "old_quantity" => $old_quantity
     );
+}
+
+
+
+
+function dlxedd_fix_cart($user_id, $cart) {
+    $modified = false;
+    foreach($cart as $i => $product) {
+        if(!dlxedd_product_exists($product["id"])) {
+            unset($cart[$i]);
+            $modified = true;
+        }
+    }
+
+    if($modified) {
+        dlxedd_update_cart($user_id, $cart);
+    }
+
+    return $cart;
 }
