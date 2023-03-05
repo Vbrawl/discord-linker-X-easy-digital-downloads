@@ -32,7 +32,7 @@ function dlxedd_cart_add_items_button() {
     wp_enqueue_script("discord_cart");
 
     $dlxedd_add_items_callback_id = get_option("dlxedd_add_items_callback_id", 0);
-    return "<div id='dlxedd-add-items-button' class='edd-submit blue button' page_id='{$dlxedd_add_items_callback_id}'>Add Items From Discord</div>";
+    return "<button id='dlxedd-add-items-button' class='edd-submit blue button' page_id='{$dlxedd_add_items_callback_id}'>Add Items From Discord</button>";
 }
 
 
